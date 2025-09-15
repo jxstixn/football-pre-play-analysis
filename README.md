@@ -33,15 +33,32 @@ required for analysis from hours to minutes.
 
 ---
 
-## 🏃 Usage
+## Project Architecture
 
-Run the full pipeline on a sample video:
-python src/pipeline.py --video data/raw/game1.mp4 --output results/
-Run individual modules:
-python src/player_detection.py --input data/processed/frame1.jpg
+```
 
-Video of the complete pipeline in action:  
-[![Watch the video]] (https://www.youtube.com/watch?v=dQw4w9WgXcQ "Pipeline Demo")
+```
+
+# 🏃 Usage
+
+## Application Setup
+
+
+## Manual Setup with Jupyter Notebook
+
+````
+Prerequisites:
+````
+
+1. Clone the repository:
+
+   ```bash
+   git clone
+
+
+
+## Video of the complete pipeline in action :
+[![Pipeline Demo](https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 ## 📊 Example Output
 
@@ -51,17 +68,17 @@ Broadcast Frame with Detection
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Bounding boxes + LOS line</h3>
-    <img src="bounding_boxes_detection.png" alt="Bounding boxes + LOS line" width="600"/>
+    <img src="images/bounding_boxes_detection.png" alt="Bounding boxes + LOS line" width="600"/>
   </div>
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Bird’s-Eye Projection</h3>
-    <img src="birds_eye_projection.png" alt="Bird’s-Eye Projection" width="150"/>
+    <img src="images/birds_eye_projection.png" alt="Bird’s-Eye Projection" width="150"/>
   </div>
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Standardized top-down view with player positions & formation label</h3>
-    <img src="standard_top_down.png" alt="Standardized top-down view" width="300"/>
+    <img src="images/standard_top_down.png" alt="Standardized top-down view" width="300"/>
   </div>
 
 </div>
