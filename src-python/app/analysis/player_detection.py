@@ -15,7 +15,72 @@ label_annotator = sv.LabelAnnotator()
 bounding_box_annotator = sv.BoxAnnotator()
 
 
-def detect_players(img_path: str, output_img_path: str) -> Detections:
+def calculate_los(image, yard_lines, player_detections):
+    H, _ = image.shape[:2]
+
+    # Collect foot positions by class
+    oline_positions = []
+    defense_positions = []
+    for det in player_detections:
+        bbox = det[0]
+        cls = det[5]['class_name']
+        x1, y1, x2, y2 = bbox
+        foot_x = int((x1 + x2) / 2)
+        foot_y = int(y2)
+        if cls == 'oline':
+            oline_positions.append((foot_x, foot_y))
+        elif cls == 'defense':
+            defense_positions.append((foot_x, foot_y))
+
+    if not oline_positions or not defense_positions:
+        return None
+
+    # Find closest oline-defense pair
+    best_pair = None
+    best_dist_sq = float('inf')
+    for ox, oy in oline_positions:
+        for dx, dy in defense_positions:
+            d2 = (ox - dx) ** 2 + (oy - dy) ** 2
+            if d2 < best_dist_sq:
+                best_dist_sq = d2
+                best_pair = ((ox, oy), (dx, dy))
+
+    (ox, oy), (dx, dy) = best_pair
+    mid_x = (ox + dx) / 2.0
+    mid_y = (oy + dy) / 2.0
+
+    # Choose yard line from yard_lines whose x at y=mid_y is closest to mid_x
+    if yard_lines and len(yard_lines) > 0:
+        best_abs = float('inf')
+        best_inv_slope = 0.0
+        for (x_top_i, x_bot_i) in yard_lines:
+            inv_slope_i = (x_bot_i - x_top_i) / float(H)
+            x_at_mid = x_top_i + inv_slope_i * mid_y
+            diff = abs(mid_x - x_at_mid)
+            if diff < best_abs:
+                best_abs = diff
+                best_inv_slope = inv_slope_i
+
+        # Shift yard line to pass through midpoint
+        x_top_new = mid_x - best_inv_slope * mid_y
+        x_bot_new = mid_x + best_inv_slope * (H - mid_y)
+
+        p1 = (int(round(x_top_new)), 0)
+        p2 = (int(round(x_bot_new)), H)
+    else:
+        # Fallback: vertical through midpoint
+        p1 = (int(round(mid_x)), 0)
+        p2 = (int(round(mid_x)), H)
+
+    return {
+        'midpoint': (mid_x, mid_y),
+        'pair': ((ox, oy), (dx, dy)),
+        'p1': p1,
+        'p2': p2,
+    }
+
+
+def detect_players(img_path: str, output_img_path: str, yard_lines) -> Detections:
     player_detection_image = cv2.imread(img_path)
 
     with CLIENT.use_configuration(client_config):
@@ -77,14 +142,9 @@ def detect_players(img_path: str, output_img_path: str) -> Detections:
         scene=player_detection_image, detections=filtered_detections)
     player_detection_image = label_annotator.annotate(
         scene=player_detection_image, detections=filtered_detections, labels=filtered_labels)
+
+    los = calculate_los(player_detection_image, yard_lines, filtered_detections)
+    cv2.line(player_detection_image, los['p1'], los['p2'], (0, 255, 255), 3)
     cv2.imwrite(output_img_path, player_detection_image)
 
     return filtered_detections
-
-
-if __name__ == "__main__":
-    img_path = "C:/Users\Justin.Getzke\AppData\Roaming\com.uoc.football-pre-play-analysis\extracted/2108 BOISE STATE OFF vs COLORADO STATE\snaps\play_005_snap2.jpg"
-    output_img_path = "players.jpg"
-    detections = detect_players(img_path, output_img_path)
-    print(f"Output written to {output_img_path}")
-    print(detections)

@@ -29,8 +29,6 @@ def extend_and_cluster(yard_lines, img_height, eps=20, min_samples=1):
     intercepts = []
     # 1) for each segment compute its (x_top, x_bot)
     for (x1, y1, x2, y2) in yard_lines:
-        # line in ax + by + c = 0 form
-        # but easier: parametric slope/intercept
         if x2 == x1:
             # perfect vertical
             x_top = x_bot = x1
@@ -61,7 +59,7 @@ def extend_and_cluster(yard_lines, img_height, eps=20, min_samples=1):
     # check for duplicates by calculating the mid_x for each line and check for close padding
     mid_xs = [(top + bot) / 2 for top, bot in masters]
     mid_xs_sorted = sorted(mid_xs)
-    print("Mid Xs:", mid_xs_sorted)
+
     filtered_masters = []
     last_mid_x = -float('inf')
     padding_threshold = 50  # pixels
@@ -127,10 +125,3 @@ def detect_yard_lines(img_path: str, output_img_path: str, max_degree: int = 60)
     cv2.imwrite(output_img_path, output_img)
 
     return final_yard_lines
-
-
-if __name__ == "__main__":
-    img_path = "C:/Users\Justin.Getzke\AppData\Roaming\com.uoc.football-pre-play-analysis\extracted/2108 BOISE STATE OFF vs COLORADO STATE\snaps\play_005_snap2.jpg"
-    output_img_path = "yard_lines.jpg"
-    detect_yard_lines(img_path, output_img_path)
-    print(f"Output written to {output_img_path}")

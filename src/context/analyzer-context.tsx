@@ -12,6 +12,7 @@ export type AnalyzerStatus = "idle" | "starting" | "running" | "done" | "error" 
 
 export interface AnalyzerEvent {
     type: string;
+    /* eslint-disable  @typescript-eslint/no-explicit-any */
     [key: string]: any;
 }
 
@@ -139,10 +140,10 @@ export function AnalyzerProvider({
                 const id = data.job_id as string;
                 setJobId(id);
                 openWebSocket(id);
-            } catch (err: any) {
+            } catch (err) {
                 console.error(err);
                 setStatus("error");
-                onError?.(new Error(String(err?.message ?? err)));
+                if (err instanceof Error) onError?.(new Error(String(err?.message ?? err)));
             }
         },
         [API_BASE, openWebSocket, onError]

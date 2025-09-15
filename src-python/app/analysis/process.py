@@ -104,7 +104,15 @@ async def process_snap_analysis_job(job_id: str, params: AnalyzeSnapInput, emit:
 
                 case "detect_players":
                     logger.info(f"Starting player detection for job {job_id}")
-                    player_detections = await asyncio.to_thread(fn, *args, **kwargs)
+                    if "yard_lines" not in artifacts:
+                        logger.info(f"Artifacts so far: {list(artifacts.keys())}")
+                        logger.error(f"Missing yard lines for player detection in job {job_id}")
+                        msg = "Cannot detect players without yard lines."
+                        errors.append({"stage": name, "message": msg})
+                        await emit({"type": "error", "stage": name, "message": msg})
+                        aborted = True
+                        break
+                    player_detections = await asyncio.to_thread(fn, file_path, player_detections_img, artifacts.get("yard_lines", []))
                     if isinstance(player_detections, Detections):
                         artifacts["player_detections"] = player_detections
                     else:

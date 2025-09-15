@@ -26,6 +26,7 @@ import {Progress} from "@/components/ui/progress";
 import {Badge} from "@/components/ui/badge";
 
 interface SnapsCardProps extends React.HTMLAttributes<HTMLDivElement> {
+    className?: string;
 }
 
 export const SnapsCard = React.forwardRef<HTMLDivElement, SnapsCardProps>(
@@ -68,6 +69,8 @@ export const SnapsCard = React.forwardRef<HTMLDivElement, SnapsCardProps>(
         );
     })
 
+SnapsCard.displayName = "SnapsCard";
+
 interface SnapItemProps {
     snap: Snap;
     index: number;
@@ -76,8 +79,7 @@ interface SnapItemProps {
 
 const SnapItem: FC<SnapItemProps> = ({snap, index, onClick}) => {
     const {selectedFile} = useFileContext();
-    if (!selectedFile) return null;
-    const {deleteSnap} = useSnaps(selectedFile.name.replace(/\.[^/.]+$/, ""));
+    const {deleteSnap} = useSnaps(selectedFile?.name.replace(/\.[^/.]+$/, "") || "");
 
     const analysisAvailable = useMemo(() => {
         return snap.analysis && snap.analysis.player_detection && snap.analysis.player_detection.url;
@@ -137,17 +139,15 @@ interface SnapViewerProps {
 }
 
 const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
-    if (!snap) return null;
-
     const {status, progress, analyze, reset, cancel, events} = useSnapAnalyzer({})
 
     const analysisAvailable = useMemo(() => {
-        return snap.analysis && snap.analysis.player_detection && snap.analysis.artificial_pitch && snap.analysis.player_detection.url;
-    }, [snap.analysis]);
+        return snap?.analysis && snap.analysis.player_detection && snap.analysis.artificial_pitch && snap.analysis.player_detection.url;
+    }, [snap?.analysis]);
 
     const formationAvailable = useMemo(() => {
-        return snap.analysis && snap.analysis.formation_classification;
-    }, [snap.analysis]);
+        return snap?.analysis && snap.analysis.formation_classification;
+    }, [snap?.analysis]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,19 +167,19 @@ const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
                                 Pitch</TabsTrigger>
                         </TabsList>
                         <TabsContent value="snap">
-                            <img src={snap.url ?? ""} alt="Snap"
+                            <img src={snap?.url ?? ""} alt="Snap"
                                  className="aspect-video w-full object-cover rounded-md"/>
                         </TabsContent>
                         <TabsContent value="player_detections">
-                            <img src={snap.analysis.player_detection?.url ?? ""} alt="Snap"
+                            <img src={snap?.analysis.player_detection?.url ?? ""} alt="Snap"
                                  className="aspect-video w-full object-cover rounded-md"/>
                         </TabsContent>
                         <TabsContent className={"justify-items-center"} value="top_down_perspective">
-                            <img src={snap.analysis.top_down_perspective?.url ?? ""} alt="Snap"
+                            <img src={snap?.analysis.top_down_perspective?.url ?? ""} alt="Snap"
                                  className="max-h-96 object-cover rounded-md"/>
                         </TabsContent>
                         <TabsContent className={"justify-items-center"} value="artificial_pitch">
-                            <img src={snap.analysis.artificial_pitch?.url ?? ""} alt="Snap"
+                            <img src={snap?.analysis.artificial_pitch?.url ?? ""} alt="Snap"
                                  className="max-h-96 object-cover rounded-md"/>
                         </TabsContent>
                     </Tabs>
@@ -207,7 +207,7 @@ const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
                             case "cancelled":
                                 return <Button variant="outline" onClick={reset}>Analysis Cancelled - Reset</Button>;
                             case "idle":
-                                return <Button onClick={() => analyze(snap.path)}>
+                                return <Button onClick={() => analyze(snap?.path ?? "")}>
                                     Analyze Snap
                                 </Button>
                             default:
@@ -216,13 +216,13 @@ const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
                     })()}
                     {formationAvailable &&
                         <div>
-                            {snap.analysis.formation_classification?.details.offensive_player_count < 11 &&
-                                <div className={"text-sm text-warning"}>Warning: Detected only {snap.analysis.formation_classification?.details.offensive_player_count} offensive players. Formation classification may be inaccurate.</div>
+                            {snap?.analysis.formation_classification?.details.offensive_player_count < 11 &&
+                                <div className={"text-sm text-warning"}>Warning: Detected only {snap?.analysis.formation_classification?.details.offensive_player_count} offensive players. Formation classification may be inaccurate.</div>
                             }
                             <h1 className={"text-xl text-destructive"}></h1>
-                            <h2 className={"text-lg font-bold"}>{`Formation: ${snap.analysis.formation_classification?.label}`}</h2>
+                            <h2 className={"text-lg font-bold"}>{`Formation: ${snap?.analysis.formation_classification?.label}`}</h2>
                             <h3 className={"text-lg font-bold"}>
-                                {`LoS: ${snap.analysis.formation_classification?.los ?? "X"} yards`}
+                                {`LoS: ${snap?.analysis.formation_classification?.los ?? "X"} yards`}
                             </h3>
                         </div>}
                 </div>

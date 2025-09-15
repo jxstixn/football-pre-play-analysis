@@ -91,6 +91,7 @@ export type FormationClassification = {
     off_flag: boolean;
     label: string;
     los: number;
+    /* eslint-disable  @typescript-eslint/no-explicit-any */
     details: Record<string, any>;
 }
 

@@ -21,7 +21,7 @@ export const PreviewCard = () => {
         } else {
             setVideoSrc(null);
         }
-    }, [selectedFile, getFileURL]);
+    }, [selectedFile]);
 
     if (!selectedFile) return null;
 

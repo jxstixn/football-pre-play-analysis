@@ -19,14 +19,6 @@ export const VideoAnalysisSettings: FC = () => {
     const firstRun = useRef(true);
     const endRef = useRef<HTMLDivElement | null>(null);
 
-    if (!selectedFile) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">Please select a video file to analyze.</p>
-            </div>
-        );
-    }
-
     const form = useForm<VideoCuttingSettings>({
         resolver: zodResolver(VideoCuttingSchema),
         defaultValues: {
@@ -44,6 +36,14 @@ export const VideoAnalysisSettings: FC = () => {
         endRef.current?.scrollIntoView({behavior: firstRun.current ? "auto" : "smooth"});
         firstRun.current = false;
     }, [events]);
+
+    if (!selectedFile) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">Please select a video file to analyze.</p>
+            </div>
+        );
+    }
 
     return (
         <Card className={"col-span-1 max-h-[600px]"}>

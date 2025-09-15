@@ -141,7 +141,7 @@ export function useSnapAnalyzer({apiBase, onError}: SnapAnalyzerOptions): SnapAn
                 const id = data.job_id as string;
                 setJobId(id);
                 openWebSocket(id);
-            } catch (err: any) {
+            } catch (err) {
                 console.error("Failed to start analysis:", err);
                 setStatus("error");
                 onError?.(err instanceof Error ? err : new Error(String(err)));
