@@ -40,9 +40,10 @@ def _is_backfield(x, x_los, offense_side, min_depth_yards=1.0):
 
 
 def _compute_tackles(oline, x_los, offense_side):
-    los_band = [p for p in oline if _on_los_band(p.x, x_los, offense_side, tol_yards=1.0)]
+    los_band = [p[0] if isinstance(p, tuple) else p for p in oline if
+                _on_los_band((p[0] if isinstance(p, tuple) else p).x, x_los, offense_side, tol_yards=1.0)]
     if len(los_band) < 2:
-        los_band = oline[:]
+        los_band = [p[0] if isinstance(p, tuple) else p for p in oline]
     if not los_band:
         raise ValueError("No offensive linemen provided; cannot define tackle box.")
     leftmost = min(los_band, key=lambda p: p.y)
@@ -150,6 +151,45 @@ def players_in_box(players, box):
     return [p for p in players if min_x <= p.x <= max_x and min_y <= p.y <= max_y]
 
 
+def players_in_box_oline(players, x_los, offense_side):
+    """
+    Gibt eine Liste von Spielern im O-Line-Bereich zurück und klassifiziert TEs als 'TE left', 'TE left off', 'TE right', 'TE right off'
+    abhängig von ihrer Position relativ zur O-Line und offense_side.
+    """
+    oLine_box = get_bounding_box(_find_oline_players(players, x_los, offense_side), padding=5.0 * PX_PER_YARD)
+    strict_oLine_box = get_bounding_box(_find_oline_players(players, x_los, offense_side))
+
+    oline = players_in_box(players, oLine_box)
+    min_x, max_x, min_y, max_y = strict_oLine_box
+
+    result = []
+    result.extend(oline)
+    for p in oline:
+        if p.cls in ("skill"):
+            if offense_side == "left":
+                if p.y > max_y and p.x < min_x:
+                    result.append((p, "TE right off"))
+                elif p.y > max_y and p.x > min_x:
+                    result.append((p, "TE right"))
+                elif p.y < min_y and p.x > min_x:
+                    result.append((p, "TE left"))
+                elif p.x < min_x and p.y < min_y:
+                    result.append((p, "TE left off"))
+            elif offense_side == "right":
+                if p.y > max_y and p.x > max_x:
+                    result.append((p, "TE left off"))
+                elif p.y > max_y and p.x < max_x:
+                    result.append((p, "TE left"))
+                elif p.y < min_y and p.x < max_x:
+                    result.append((p, "TE right"))
+                elif p.x > max_x and p.y < min_y:
+                    result.append((p, "TE right off"))
+            if result and isinstance(result[-1], tuple) and result[-1][0] == p:
+                result.remove(p)
+
+    return result
+
+
 def map_transformed_to_filtered_positions(transformed_player_positions):
     allowed_classes = {"skill", "oline", "qb"}
     player_positions = []
@@ -181,8 +221,7 @@ def classify_formation(formation_result_path: str, player_positions, x_los, offe
     qb = groups.get("qb", [])
 
     # compute the players inside the o-line box
-    oLine_box = get_bounding_box(_find_oline_players(ps, x_los, offense_side), padding=5.0 * PX_PER_YARD)
-    oline = players_in_box(ps, oLine_box)
+    oline = players_in_box_oline(ps, x_los, offense_side)
 
     # compute the wide receiver box on the left and right side of the o-line box
     leftWR_box = get_bounding_box(_find_wide_receivers(ps, x_los, offense_side, side="left"), padding=5.0 * PX_PER_YARD)
@@ -194,7 +233,7 @@ def classify_formation(formation_result_path: str, player_positions, x_los, offe
 
     # compute the running backs
     qb_box = get_bounding_box(qb, padding=10.5 * PX_PER_YARD)
-    qb = [p for p in players_in_box(ps, qb_box) if getattr(p, "cls", None) in ("qb", "skill")]
+    qb = [p for p in players_in_box(ps, qb_box) if getattr(p, "cls", None) in ("qb", "skill") and p not in oline]
 
     lt, rt = _compute_tackles(oline, x_los, offense_side)
 
@@ -235,7 +274,7 @@ def classify_formation(formation_result_path: str, player_positions, x_los, offe
     if not offense_all:
         center_y = (lt.y + rt.y) / 2.0
     else:
-        ys = sorted([p.y for p in offense_all])
+        ys = sorted([p.y if hasattr(p, "y") else p[0].y for p in offense_all])
         mid = len(ys) // 2
         center_y = ys[mid] if len(ys) % 2 == 1 else 0.5 * (ys[mid - 1] + ys[mid])
     te_sides = [side for _, side in attached_tes]
@@ -249,6 +288,9 @@ def classify_formation(formation_result_path: str, player_positions, x_los, offe
     personnel = f"{num_rb}{num_te_attached}"
     lxr = (num_wr_left, num_wr_right)
     parts = [f"{personnel} – {lxr[0]}x{lxr[1]}"]
+    for p in oline:
+        if isinstance(p, tuple) and len(p) == 2 and p[1].startswith("TE"):
+            parts.append(p[1])
     if te_side:
         parts.append(f"TE {te_side}")
     if off_flag:
