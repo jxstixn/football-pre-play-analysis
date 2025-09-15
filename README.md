@@ -37,7 +37,7 @@ https://www.youtube.com/watch?v=qCe0WocvSz8
   </div>
 
   <div style="flex: 1 1 45%; text-align: center;">
-    <h3>Bounding boxes + LOS line</h3>
+    <h3>Field Boundary Detection</h3>
     <img src="images/debug_field_boundaries.jpg" alt="Bounding boxes" width="600"/>
   </div>
 
