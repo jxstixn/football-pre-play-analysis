@@ -25,6 +25,8 @@ required for analysis from hours to minutes.
 ## Video of the complete pipeline in action :
 [![Pipeline Demo](images/video_thumbnail.png)](https://www.youtube.com/watch?v=qCe0WocvSz8)
 
+https://www.youtube.com/watch?v=qCe0WocvSz8
+
 ## 📊 Example Output
 
 Broadcast Frame with Detection
