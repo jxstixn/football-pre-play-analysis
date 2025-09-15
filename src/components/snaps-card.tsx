@@ -26,7 +26,6 @@ import {Progress} from "@/components/ui/progress";
 import {Badge} from "@/components/ui/badge";
 
 interface SnapsCardProps extends React.HTMLAttributes<HTMLDivElement> {
-    // You can add custom props here if needed
 }
 
 export const SnapsCard = React.forwardRef<HTMLDivElement, SnapsCardProps>(
@@ -122,7 +121,8 @@ const SnapItem: FC<SnapItemProps> = ({snap, index, onClick}) => {
                     <p className="text-xs text-muted-foreground">{`Play ${playIndex}`}</p>
                     <p className="text-xs text-muted-foreground">{`Snap ${snapIndex}`}</p>
                 </div>
-                <Badge variant={analysisAvailable ? "success" : "outline"} className={"h-5 self-center justify-self-end text-xs"}>
+                <Badge variant={analysisAvailable ? "success" : "outline"}
+                       className={"h-5 self-center justify-self-end text-xs"}>
                     {analysisAvailable ? <><CheckIcon className={"size-2 mr-1"}/> Analyzed</> : "Not Analyzed"}
                 </Badge>
             </div>
@@ -163,7 +163,8 @@ const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
                                 Detections</TabsTrigger>
                             <TabsTrigger value="top_down_perspective" disabled={!analysisAvailable}>Top-Down
                                 Perspective</TabsTrigger>
-                            <TabsTrigger value="artificial_pitch" disabled={!analysisAvailable}>Artificial Pitch</TabsTrigger>
+                            <TabsTrigger value="artificial_pitch" disabled={!analysisAvailable}>Artificial
+                                Pitch</TabsTrigger>
                         </TabsList>
                         <TabsContent value="snap">
                             <img src={snap.url ?? ""} alt="Snap"
@@ -214,7 +215,16 @@ const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
                         }
                     })()}
                     {formationAvailable &&
-                        <h2 className={"text-lg font-bold"}>{`Formation: ${snap.analysis.formation_classification?.label}`}</h2>}
+                        <div>
+                            {snap.analysis.formation_classification?.details.offensive_player_count < 11 &&
+                                <div className={"text-sm text-warning"}>Warning: Detected only {snap.analysis.formation_classification?.details.offensive_player_count} offensive players. Formation classification may be inaccurate.</div>
+                            }
+                            <h1 className={"text-xl text-destructive"}></h1>
+                            <h2 className={"text-lg font-bold"}>{`Formation: ${snap.analysis.formation_classification?.label}`}</h2>
+                            <h3 className={"text-lg font-bold"}>
+                                {`LoS: ${snap.analysis.formation_classification?.los ?? "X"} yards`}
+                            </h3>
+                        </div>}
                 </div>
             </DialogContent>
         </Dialog>

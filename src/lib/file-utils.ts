@@ -90,6 +90,7 @@ export type FormationClassification = {
     te_side: string;
     off_flag: boolean;
     label: string;
+    los: number;
     details: Record<string, any>;
 }
 

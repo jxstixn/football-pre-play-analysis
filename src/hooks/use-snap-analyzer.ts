@@ -75,6 +75,7 @@ export function useSnapAnalyzer({apiBase, onError}: SnapAnalyzerOptions): SnapAn
                         case "error": {
                             setStatus("error");
                             onError?.(new Error(e.message));
+                            ws.close();
                             break;
                         }
                         case "stage": {

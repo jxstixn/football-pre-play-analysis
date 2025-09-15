@@ -21,6 +21,7 @@ class FormationResult:
     te_side: str
     off_flag: bool
     label: str
+    los: int
     details: Dict
 
 
@@ -139,6 +140,8 @@ def _find_qb(players, x_los, offense_side):
 
 
 def get_bounding_box(players, padding=0.0):
+    if not players:
+        return 0.0, 0.0, 0.0, 0.0
     min_x = min(p.x for p in players) - padding
     max_x = max(p.x for p in players) + padding
     min_y = min(p.y for p in players) - padding
@@ -156,24 +159,25 @@ def players_in_box_oline(players, x_los, offense_side):
     Gibt eine Liste von Spielern im O-Line-Bereich zurück und klassifiziert TEs als 'TE left', 'TE left off', 'TE right', 'TE right off'
     abhängig von ihrer Position relativ zur O-Line und offense_side.
     """
-    oLine_box = get_bounding_box(_find_oline_players(players, x_los, offense_side), padding=5.0 * PX_PER_YARD)
+    oLine_box = get_bounding_box(_find_oline_players(players, x_los, offense_side), padding=7.5 * PX_PER_YARD)
     strict_oLine_box = get_bounding_box(_find_oline_players(players, x_los, offense_side))
-
+    print(oLine_box)
     oline = players_in_box(players, oLine_box)
     min_x, max_x, min_y, max_y = strict_oLine_box
-
+    print(strict_oLine_box)
+    print(oline)
     result = []
     result.extend(oline)
     for p in oline:
         if p.cls in ("skill"):
             if offense_side == "left":
-                if p.y > max_y and p.x < min_x:
+                if p.y >= max_y-20 and p.x < min_x:
                     result.append((p, "TE right off"))
-                elif p.y > max_y and p.x > min_x:
+                elif p.y >= max_y and p.x >= min_x:
                     result.append((p, "TE right"))
-                elif p.y < min_y and p.x > min_x:
+                elif p.y < min_y and p.x >= min_x:
                     result.append((p, "TE left"))
-                elif p.x < min_x and p.y < min_y:
+                elif p.x <= min_x and p.y <= min_y:
                     result.append((p, "TE left off"))
             elif offense_side == "right":
                 if p.y > max_y and p.x > max_x:
@@ -224,9 +228,12 @@ def get_offense_side(x_los, player_positions):
     return "left" if avg_off_x < avg_def_x else "right"
 
 
-def classify_formation(formation_result_path: str, player_positions, x_los):
+def classify_formation(formation_result_path: str, player_positions, x_los, los_yards):
+    offensive_player_count = sum(1 for p in player_positions if p['class'] in ('skill', 'oline', 'qb'))
+    defensive_player_count = sum(1 for p in player_positions if p['class'] == 'defense')
+
     offense_side = get_offense_side(x_los, player_positions)
-    print("Offense side determined as:", offense_side)
+
     filtered_players = map_transformed_to_filtered_positions(player_positions)
     ps = [Player(**p) if not isinstance(p, Player) else p for p in filtered_players]
     groups = _classify_roles(ps, x_los, offense_side)
@@ -241,11 +248,21 @@ def classify_formation(formation_result_path: str, player_positions, x_los):
     rightWR_box = get_bounding_box(_find_wide_receivers(ps, x_los, offense_side, side="right"),
                                    padding=5.0 * PX_PER_YARD)
 
-    leftWR = players_in_box(ps, leftWR_box)
-    rightWR = players_in_box(ps, rightWR_box)
+    oline_ids = {getattr(p, "id", None) if not isinstance(p, tuple) else getattr(p[0], "id", None) for p in oline}
+    leftWR = [p for p in players_in_box(ps, leftWR_box) if getattr(p, "id", None) not in oline_ids]
+    rightWR = [p for p in players_in_box(ps, rightWR_box) if getattr(p, "id", None) not in oline_ids]
 
     # compute the running backs
-    qb_box = get_bounding_box(qb, padding=10.5 * PX_PER_YARD)
+    if qb:
+        qb_box = get_bounding_box(qb, padding=10.5 * PX_PER_YARD)
+    else:
+        #Fallback: define a QB box relative to the o-line box
+        oline_box = get_bounding_box(_find_oline_players(ps, x_los, offense_side), padding=7.5 * PX_PER_YARD)
+        min_x, max_x, min_y, max_y = oline_box
+        if offense_side == "left":
+            qb_box = (min_x - 15 * PX_PER_YARD, min_x, min_y, max_y)
+        else:
+            qb_box = (max_x, max_x + 15 * PX_PER_YARD, min_y, max_y)
     qb = [p for p in players_in_box(ps, qb_box) if getattr(p, "cls", None) in ("qb", "skill") and p not in oline]
 
     lt, rt = _compute_tackles(oline, x_los, offense_side)
@@ -301,15 +318,21 @@ def classify_formation(formation_result_path: str, player_positions, x_los):
     personnel = f"{num_rb}{num_te_attached}"
     lxr = (num_wr_left, num_wr_right) if offense_side == "left" else (num_wr_right, num_wr_left)
     parts = [f"{personnel} – {lxr[0]}x{lxr[1]}"]
-    for p in oline:
-        if isinstance(p, tuple) and len(p) == 2 and p[1].startswith("TE"):
-            parts.append(p[1])
-    if te_side:
-        parts.append(f"TE {te_side}")
-    if off_flag:
-        parts.append("OFF")
+    te_right = any(isinstance(p, tuple) and "TE right" in p[1] for p in oline)
+    te_left = any(isinstance(p, tuple) and "TE left" in p[1] for p in oline)
+    te_off = any(isinstance(p, tuple) and "off" in p[1].lower() for p in oline)
+    if te_right and not te_left:
+        parts.append("TE right")
+    elif te_left and te_right:
+        parts.append("TE both")
+    elif te_left and not te_right:
+        parts.append("TE left")
+    if te_off:
+        parts.append("[OFF]")
     label = " ".join(parts)
     details = {
+        "offensive_player_count": offensive_player_count,
+        "defensive_player_count": defensive_player_count,
         "offense_side": offense_side,
         "num_rb": num_rb,
         "num_te_attached": num_te_attached,
@@ -336,10 +359,11 @@ def classify_formation(formation_result_path: str, player_positions, x_los):
         "te_side": te_side,
         "off_flag": off_flag,
         "label": label,
+        "los": los_yards,
         "details": details
     }
 
     with open(formation_result_path, "w") as f:
         json.dump(final_json, f, indent=4)
 
-    return FormationResult(personnel, lxr, te_side, off_flag, label, details)
+    return FormationResult(personnel, lxr, te_side, off_flag, label, los_yards, details)

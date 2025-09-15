@@ -201,7 +201,7 @@ async def process_snap_analysis_job(job_id: str, params: AnalyzeSnapInput, emit:
 
                 case "classify_formation":
                     logger.info(f"Starting formation classification for job {job_id}")
-                    if not all(k in artifacts for k in ("transformed_players", "x_los")):
+                    if not all(k in artifacts for k in ("transformed_players", "x_los", "los_yards")):
                         msg = "Cannot classify formation without transformed players and line of scrimmage."
                         errors.append({"stage": name, "message": msg})
                         await emit({"type": "error", "stage": name, "message": msg})
@@ -211,7 +211,8 @@ async def process_snap_analysis_job(job_id: str, params: AnalyzeSnapInput, emit:
                         fn,
                         formation_result_path=formation_result,
                         player_positions=artifacts["transformed_players"],
-                        x_los=artifacts["x_los"]
+                        x_los=artifacts["x_los"],
+                        los_yards=artifacts["los_yards"],
                     )
                     if result is None:
                         logger.error(f"Formation classification failed for job {job_id}")
