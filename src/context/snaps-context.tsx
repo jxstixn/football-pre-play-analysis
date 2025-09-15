@@ -1,6 +1,6 @@
 "use client"
 
-import React, {createContext, useContext, useState, PropsWithChildren} from "react";
+import React, {createContext, useContext, useState, PropsWithChildren, useMemo} from "react";
 import {Snap, useSnaps} from "@/hooks/use-snaps";
 import {FileItem} from "@/lib/file-utils";
 
@@ -18,7 +18,14 @@ export const SnapsContext = createContext<SnapsContextType | undefined>(undefine
 export const SnapsProvider = ({ selectedFile, children }: PropsWithChildren<{ selectedFile: FileItem }>) => {
     const dir = selectedFile.name.replace(/\.[^/.]+$/, "")
     const { data = [], isLoading, isError, error, refetch } = useSnaps(dir);
-    const [selectedSnap, setSelectedSnap] = useState<Snap | null>(null);
+    const [selectedSnapInternal, setSelectedSnap] = useState<Snap | null>(null);
+
+    const selectedSnap = useMemo(() => {
+        if (selectedSnapInternal) {
+            return data.find(snap => snap.path === selectedSnapInternal.path) || null;
+        }
+        return null;
+    }, [selectedSnapInternal, data]);
 
     const value = {
         snaps: data,

@@ -48,7 +48,7 @@ export const FileList = () => {
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <>Place video files here</>
+                            <>Refresh file list</>
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>

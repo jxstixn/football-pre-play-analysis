@@ -1,7 +1,8 @@
 fastapi[standard]
+inference-sdk
 numpy
 opencv-python
-roboflow
+pandas
 supervision
 uvicorn[standard]
 pyinstaller

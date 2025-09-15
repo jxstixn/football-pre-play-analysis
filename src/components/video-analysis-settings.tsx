@@ -81,8 +81,11 @@ export const VideoAnalysisSettings: FC = () => {
                             case "idle":
                                 return <Button className={"mx-6"}
                                                onClick={(evt) => {
-                                                   form.handleSubmit((data) => analyze(selectedFile.name, data))(evt)
-                                                   setMode("log");
+                                                   form.handleSubmit((data) => {
+                                                       analyze(selectedFile.name, data)
+                                                           .then(() => setMode("log"))
+                                                           .catch(console.error);
+                                                   })(evt)
                                                }}>Analyze
                                     Video</Button>
                             default:
@@ -94,14 +97,6 @@ export const VideoAnalysisSettings: FC = () => {
         </Card>
     );
 }
-
-// class CutVideoInput(BaseModel):
-// scene_threshold: float = Field(0.25, description="ffmpeg scene-change sensitivity")
-// min_play_seconds: float = Field(3, description="Ignore clips shorter than this")
-// max_clips: int = Field(10, description="0 = no limit; otherwise stop after N clips")
-// snap_at: float = Field(0.5, description="First snapshot (s) into each clip")
-// snap_step: float = Field(0.4, description="Spacing (s) between snapshots")
-// num_snap_frames: int = Field(3, description="Snapshots per clip")
 
 const VideoAnalysisSettingsMenu: FC = () => {
     const form = useFormContext<VideoCuttingSettings>();
@@ -126,7 +121,14 @@ const VideoAnalysisSettingsMenu: FC = () => {
                             </Tooltip>
                         </FormLabel>
                         <FormControl>
-                            <Input type={"number"} min={0} step={0.01} placeholder="0.25" {...field} />
+                            <Input {...field} type={"number"} min={0} step={0.01} placeholder="0.25" onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val)) {
+                                    field.onChange(val);
+                                } else {
+                                    field.onChange(0);
+                                }
+                            }}/>
                         </FormControl>
                         <FormMessage/>
                     </FormItem>
@@ -149,7 +151,14 @@ const VideoAnalysisSettingsMenu: FC = () => {
                             </Tooltip>
                         </FormLabel>
                         <FormControl>
-                            <Input type={"number"} min={0} step={1} placeholder="3" {...field} />
+                            <Input {...field} type={"number"} min={0} step={1} placeholder="3" onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!Number.isNaN(val)) {
+                                    field.onChange(val);
+                                } else {
+                                    field.onChange(0);
+                                }
+                            }} />
                         </FormControl>
                         <FormMessage/>
                     </FormItem>
@@ -172,7 +181,14 @@ const VideoAnalysisSettingsMenu: FC = () => {
                             </Tooltip>
                         </FormLabel>
                         <FormControl>
-                            <Input type={"number"} min={0} step={1} placeholder="10" {...field} />
+                            <Input {...field} type={"number"} min={0} step={1} placeholder="10" onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (!Number.isNaN(val)) {
+                                    field.onChange(val);
+                                } else {
+                                    field.onChange(0);
+                                }
+                            }} />
                         </FormControl>
                         <FormMessage/>
                     </FormItem>

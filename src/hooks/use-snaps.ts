@@ -1,11 +1,11 @@
 import {useQuery, useMutation, useQueryClient} from "@tanstack/react-query";
-import {fetchFilesFromDir, deleteFile, getFileURL, AnalysisResult, getAnalysisResults} from "@/lib/file-utils";
+import {fetchFilesFromDir, deleteFile, getFileURL, SnapAnalysisResult, getAnalysisResults} from "@/lib/file-utils";
 
 export type Snap = {
     name: string;
     path: string;
     url: string | null;
-    analysis: AnalysisResult
+    analysis: SnapAnalysisResult
 }
 
 const key = (dir: string) => ["files", dir];

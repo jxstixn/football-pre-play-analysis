@@ -114,6 +114,7 @@ export function AnalyzerProvider({
 
     const analyze = useCallback(
         async (fileName: string, settings: VideoCuttingSettings) => {
+            console.log("Starting analysis for", fileName, settings);
             setStatus("starting");
             setEvents([]);
             setOverall(0);

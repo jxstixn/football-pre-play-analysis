@@ -18,9 +18,12 @@ import {ScrollArea} from "@/components/ui/scroll-area";
 import {cn} from "@/lib/utils";
 import {Button} from "@/components/ui/button";
 import {type Snap, useSnaps} from "@/hooks/use-snaps";
-import {XIcon} from "lucide-react";
+import {CheckIcon, XIcon} from "lucide-react";
 import {useSnapsContext} from "@/context/snaps-context";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {useSnapAnalyzer} from "@/hooks/use-snap-analyzer";
+import {Progress} from "@/components/ui/progress";
+import {Badge} from "@/components/ui/badge";
 
 interface SnapsCardProps extends React.HTMLAttributes<HTMLDivElement> {
     // You can add custom props here if needed
@@ -28,9 +31,8 @@ interface SnapsCardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const SnapsCard = React.forwardRef<HTMLDivElement, SnapsCardProps>(
     ({className}, ref) => {
-        const {snaps, loading} = useSnapsContext()
+        const {snaps, loading, selectedSnap, setSelectedSnap} = useSnapsContext()
         const [open, setOpen] = useState(false);
-        const [selectedSnap, setSelectedSnap] = useState<Snap | null>(null);
 
         if (loading) {
             return (
@@ -62,7 +64,7 @@ export const SnapsCard = React.forwardRef<HTMLDivElement, SnapsCardProps>(
                         </div>
                     )}
                 </ScrollArea>
-                <SnapViewer snap={selectedSnap} open={open} onOpenChange={setOpen}/>
+                <SnapViewer key={selectedSnap?.path} snap={selectedSnap} open={open} onOpenChange={setOpen}/>
             </Card>
         );
     })
@@ -78,12 +80,22 @@ const SnapItem: FC<SnapItemProps> = ({snap, index, onClick}) => {
     if (!selectedFile) return null;
     const {deleteSnap} = useSnaps(selectedFile.name.replace(/\.[^/.]+$/, ""));
 
+    const analysisAvailable = useMemo(() => {
+        return snap.analysis && snap.analysis.player_detection && snap.analysis.player_detection.url;
+    }, [snap.analysis]);
+
+    const playNumber = snap.name.match(/play_(\d+)_snap/);
+    const playIndex = playNumber ? parseInt(playNumber[1], 10) : index + 1;
+
+    const snapNumber = snap.name.match(/snap(\d+)/);
+    const snapIndex = snapNumber ? parseInt(snapNumber[1], 10) : index + 1;
+
     return (
         <div className={"relative grid gap-1 hover:scale-105 transition-transform cursor-pointer group"}>
             <AlertDialog>
                 <AlertDialogTrigger asChild>
                     <Button
-                        className={"absolute -top-3 -right-3 z-10 p-1 size-6 rounded-full bg-black/70 hover:bg-black/100 group-hover:opacity-100 opacity-0 cursor-pointer"}
+                        className={"absolute -top-3 -right-3 z-50 p-1 size-6 rounded-full bg-black/70 hover:bg-black/100 group-hover:opacity-100 opacity-0 cursor-pointer"}
                         size={"icon"}>
                         <XIcon className={"size-3"} color={"white"}/>
                     </Button>
@@ -105,7 +117,15 @@ const SnapItem: FC<SnapItemProps> = ({snap, index, onClick}) => {
             <img src={snap.url ?? ""} alt={snap.name}
                  onClick={() => onClick(snap)}
                  className="rounded-md object-fill"/>
-            <div className="text-xs text-muted-foreground">Snap {index + 1}</div>
+            <div className={"grid grid-cols-2"}>
+                <div className={"flex flex-col"}>
+                    <p className="text-xs text-muted-foreground">{`Play ${playIndex}`}</p>
+                    <p className="text-xs text-muted-foreground">{`Snap ${snapIndex}`}</p>
+                </div>
+                <Badge variant={analysisAvailable ? "success" : "outline"} className={"h-5 self-center justify-self-end text-xs"}>
+                    {analysisAvailable ? <><CheckIcon className={"size-2 mr-1"}/> Analyzed</> : "Not Analyzed"}
+                </Badge>
+            </div>
         </div>
     )
 }
@@ -119,9 +139,15 @@ interface SnapViewerProps {
 const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
     if (!snap) return null;
 
+    const {status, progress, analyze, reset, cancel, events} = useSnapAnalyzer({})
+
     const analysisAvailable = useMemo(() => {
-        return snap.analysis && snap.analysis.player_detection && snap.analysis.player_detection.url;
-    }, [snap]);
+        return snap.analysis && snap.analysis.player_detection && snap.analysis.artificial_pitch && snap.analysis.player_detection.url;
+    }, [snap.analysis]);
+
+    const formationAvailable = useMemo(() => {
+        return snap.analysis && snap.analysis.formation_classification;
+    }, [snap.analysis]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,13 +155,15 @@ const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
                 <DialogHeader>
                     <DialogTitle>Snap Viewer</DialogTitle>
                 </DialogHeader>
-                <div className={"grid gap-4"}>
+                <div className={"grid gap-4 h-full max-h-full"}>
                     <Tabs defaultValue="snap">
                         <TabsList className={"w-full"}>
                             <TabsTrigger value="snap">Snap</TabsTrigger>
                             <TabsTrigger value="player_detections" disabled={!analysisAvailable}>Player
                                 Detections</TabsTrigger>
-                            <TabsTrigger value="top_down_perspective" disabled={!analysisAvailable}>Top-Down Perspective</TabsTrigger>
+                            <TabsTrigger value="top_down_perspective" disabled={!analysisAvailable}>Top-Down
+                                Perspective</TabsTrigger>
+                            <TabsTrigger value="artificial_pitch" disabled={!analysisAvailable}>Artificial Pitch</TabsTrigger>
                         </TabsList>
                         <TabsContent value="snap">
                             <img src={snap.url ?? ""} alt="Snap"
@@ -149,11 +177,44 @@ const SnapViewer: FC<SnapViewerProps> = ({snap, open, onOpenChange}) => {
                             <img src={snap.analysis.top_down_perspective?.url ?? ""} alt="Snap"
                                  className="max-h-96 object-cover rounded-md"/>
                         </TabsContent>
+                        <TabsContent className={"justify-items-center"} value="artificial_pitch">
+                            <img src={snap.analysis.artificial_pitch?.url ?? ""} alt="Snap"
+                                 className="max-h-96 object-cover rounded-md"/>
+                        </TabsContent>
                     </Tabs>
-                    {!analysisAvailable && <Button>
-                        Analyze Snap
-                    </Button>
+                    {(status === "running" || status === "starting") &&
+                        <div className={"grid gap-2"}>
+                            <div className={"flex justify-between text-sm"}>
+                                <div>{events.length > 0 ? events[events.length - 1].message : "Starting analysis..."}</div>
+                                <div>{Math.round(progress)}%</div>
+                            </div>
+                            <Progress value={progress} className={"w-full"}/>
+                        </div>
                     }
+                    {(() => {
+                        if (status === "idle" && analysisAvailable) {
+                            return null;
+                        }
+                        switch (status) {
+                            case "running":
+                            case "starting":
+                                return <Button variant="outline" onClick={cancel}>Cancel</Button>;
+                            case "error":
+                                return <Button variant="destructive">Error</Button>;
+                            case "done":
+                                return <Button variant="default">Analysis Complete</Button>;
+                            case "cancelled":
+                                return <Button variant="outline" onClick={reset}>Analysis Cancelled - Reset</Button>;
+                            case "idle":
+                                return <Button onClick={() => analyze(snap.path)}>
+                                    Analyze Snap
+                                </Button>
+                            default:
+                                return null;
+                        }
+                    })()}
+                    {formationAvailable &&
+                        <h2 className={"text-lg font-bold"}>{`Formation: ${snap.analysis.formation_classification?.label}`}</h2>}
                 </div>
             </DialogContent>
         </Dialog>

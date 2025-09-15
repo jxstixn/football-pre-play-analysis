@@ -9,9 +9,9 @@
     "lint": "eslint",
     "tauri": "tauri",
     "install-reqs": "pnpm install && pip3 install -r requirements.txt",
-    "build:sidecar-windows": "pyinstaller -c -F --clean --name main-x86_64-pc-windows-msvc --distpath src-tauri/binaries/api --add-data \"src-python/video.py;.\" src-python/main.py",
-    "build:sidecar-macos": "pyinstaller -c -F --clean --name main-aarch64-apple-darwin --distpath src-tauri/binaries/api --hidden-import video src-python/main.py",
-    "build:sidecar-linux": "pyinstaller -c -F --clean --name main-x86_64-unknown-linux-gnu --distpath src-tauri/binaries/api --hidden-import video src-python/main.py"
+    "build:sidecar-windows": "pyinstaller -c -F --clean --name main-x86_64-pc-windows-msvc --distpath src-tauri/binaries/api --paths src-python --collect-all app --add-data \"src-python/resources/*;resources/\" src-python/app/main.py",
+    "build:sidecar-macos": "pyinstaller -c -F --clean --name main-aarch64-apple-darwin --distpath src-tauri/binaries/api --paths src-python --collect-all app --add-data \"src-python/resources/*;resources/\" src-python/app/main.py",
+    "build:sidecar-linux": "pyinstaller -c -F --clean --name main-x86_64-unknown-linux-gnu --distpath src-tauri/binaries/api --paths src-python --collect-all app --add-data \"src-python/resources/*;resources/\" src-python/app/main.py"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
