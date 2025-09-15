@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Automated Pre-Play Analysis of Football Formations
+---
 
-## Getting Started
+## 📖 Overview
 
-First, run the development server:
+This repository implements a **modular pipeline** for detecting and classifying offensive formations in American
+football from broadcast video. The project builds upon the paper:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+> **Automated Pre-Play Analysis of Football**  
+> Lasse Wilhelm, Justin Getzke  
+> University of Cologne, 2025
+
+The pipeline integrates:
+
+- **Roboflow 3.0 model** for player detection
+- **Homography-based field registration** using yard lines & hash marks
+- **Formation classification** based on personnel grouping (RB, TE, WR) and positional alignment
+- **Visualization tools** for annotated broadcast frames and standardized bird’s-eye views
+
+The system achieves **formation recognition accuracy on par with expert human analysts**, while reducing the time
+required for analysis from hours to minutes.
+
+---
+
+## 🚀 Features
+
+- 🎥 **Frame Selection**: Extracts relevant pre-snap frames using FFmpeg scene detection
+- 🏈 **Player Detection**: Custom trained Roboflow 3.0  model for offensive line, QB, skill players, defense, referees
+- 📐 **Field Registration**: Detects yard lines & hash marks, computes homography for top-down scaling
+- 📊 **Formation Classification**: Classifies offensive personnel groups (10, 11, 12, …) + alignment (L/R balance, TE
+  positions)
+- 🖼 **Visualization**: Annotated broadcast frames + top-down tactical diagrams
+
+---
+
+## 🏃 Usage
+
+Run the full pipeline on a sample video:
+python src/pipeline.py --video data/raw/game1.mp4 --output results/
+Run individual modules:
+python src/player_detection.py --input data/processed/frame1.jpg
+
+Video of the complete pipeline in action:  
+[![Watch the video]] (https://www.youtube.com/watch?v=dQw4w9WgXcQ "Pipeline Demo")
+
+## 📊 Example Output
+
+Broadcast Frame with Detection
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
+
+  <div style="flex: 1 1 45%; text-align: center;">
+    <h3>Bounding boxes + LOS line</h3>
+    <img src="bounding_boxes_detection.png" alt="Bounding boxes + LOS line" width="600"/>
+  </div>
+
+  <div style="flex: 1 1 45%; text-align: center;">
+    <h3>Bird’s-Eye Projection</h3>
+    <img src="birds_eye_projection.png" alt="Bird’s-Eye Projection" width="150"/>
+  </div>
+
+  <div style="flex: 1 1 45%; text-align: center;">
+    <h3>Standardized top-down view with player positions & formation label</h3>
+    <img src="standard_top_down.png" alt="Standardized top-down view" width="300"/>
+  </div>
+
+</div>
+
+## 📜 Citation
+
+````
+@inproceedings{prePlayAnalysis2025formation,
+  title={Automated Pre-Play Analysis of Football},
+  author={Getzke, Justin and Wilhelm, Lasse},
+  year={2025},
+  institution={University of Cologne}
+}
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
