@@ -35,17 +35,17 @@ Broadcast Frame with Detection
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Bounding boxes + LOS line</h3>
-    <img src="images/bounding_boxes_detection.png" alt="Bounding boxes + LOS line" width="600"/>
+    <img src="images/bounding_boxes_detection.jpg" alt="Bounding boxes + LOS line" width="600"/>
   </div>
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Bird’s-Eye Projection</h3>
-    <img src="images/birds_eye_projection.png" alt="Bird’s-Eye Projection" width="150"/>
+    <img src="images/birds_eye_projection.jpg" alt="Bird’s-Eye Projection" width="150"/>
   </div>
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Standardized top-down view with player positions & formation label</h3>
-    <img src="images/standard_top_down.png" alt="Standardized top-down view" width="300"/>
+    <img src="images/standard_top_down.jpg" alt="Standardized top-down view" width="300"/>
   </div>
 
 </div>
