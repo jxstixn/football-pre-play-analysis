@@ -48,7 +48,7 @@ https://www.youtube.com/watch?v=qCe0WocvSz8
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Standardized top-down view with player positions & formation label</h3>
-    <img src="images/standard_top_down.jpg" alt="Standardized top-down view" width="300"/>
+    <img src="images/standard_top_down.jpg" alt="Standardized top-down view" width="600"/>
   </div>
 
 </div>
