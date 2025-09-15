@@ -211,17 +211,30 @@ def map_transformed_to_filtered_positions(transformed_player_positions):
     return player_positions
 
 
-def classify_formation(formation_result_path: str, player_positions, x_los, offense_side="left"):
+def get_offense_side(x_los, player_positions):
+    # check player classes by labels
+    defense = [p for p in player_positions if p['class'] == 'defense']
+    offense = [p for p in player_positions if p['class'] in ('skill', 'oline', 'qb')]
+
+    if not defense or not offense:
+        return "left"  # default to left if we can't determine
+    avg_def_x = sum(p['transformed_position'][0] for p in defense) / len(defense)
+    avg_off_x = sum(p['transformed_position'][0] for p in offense) / len(offense)
+
+    return "left" if avg_off_x < avg_def_x else "right"
+
+
+def classify_formation(formation_result_path: str, player_positions, x_los):
+    offense_side = get_offense_side(x_los, player_positions)
+    print("Offense side determined as:", offense_side)
     filtered_players = map_transformed_to_filtered_positions(player_positions)
     ps = [Player(**p) if not isinstance(p, Player) else p for p in filtered_players]
-
     groups = _classify_roles(ps, x_los, offense_side)
-    # oline = groups.get("oline", [])
-    skill = groups.get("skill", [])
-    qb = groups.get("qb", [])
 
     # compute the players inside the o-line box
     oline = players_in_box_oline(ps, x_los, offense_side)
+    skill = groups.get("skill", [])
+    qb = groups.get("qb", [])
 
     # compute the wide receiver box on the left and right side of the o-line box
     leftWR_box = get_bounding_box(_find_wide_receivers(ps, x_los, offense_side, side="left"), padding=5.0 * PX_PER_YARD)
@@ -286,7 +299,7 @@ def classify_formation(formation_result_path: str, player_positions, x_los, offe
         te_side = ""
     off_flag = len(off_tes) > 0
     personnel = f"{num_rb}{num_te_attached}"
-    lxr = (num_wr_left, num_wr_right)
+    lxr = (num_wr_left, num_wr_right) if offense_side == "left" else (num_wr_right, num_wr_left)
     parts = [f"{personnel} – {lxr[0]}x{lxr[1]}"]
     for p in oline:
         if isinstance(p, tuple) and len(p) == 2 and p[1].startswith("TE"):
@@ -297,6 +310,7 @@ def classify_formation(formation_result_path: str, player_positions, x_los, offe
         parts.append("OFF")
     label = " ".join(parts)
     details = {
+        "offense_side": offense_side,
         "num_rb": num_rb,
         "num_te_attached": num_te_attached,
         "left_receivers": num_wr_left,
