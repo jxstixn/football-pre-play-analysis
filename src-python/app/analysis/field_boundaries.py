@@ -297,18 +297,64 @@ def find_bounding_hash_lines(yard_lines, hash_centers, image, player_detections,
     min_player_x = player_centroids[:, 0].min()
     max_player_x = player_centroids[:, 0].max()
 
-    left_bounding_line = None
-    right_bounding_line = None
+    # Try to find the tightest pair of lines that contains all players
+    best_pair = None
+    best_avg_width = float('inf')
 
-    for top_pt, bottom_pt in extended_hash_lines:
-        interpolated_hash_line_x = _interpolate_x_at_y(top_pt, bottom_pt, min_player_x)
-        if interpolated_hash_line_x <= min_player_x:
-            left_bounding_line = (top_pt, bottom_pt)
+    num_lines = len(extended_hash_lines)
+    if num_lines >= 2:
+        for i in range(num_lines - 1):
+            line_i = extended_hash_lines[i]
+            for j in range(i + 1, num_lines):
+                line_j = extended_hash_lines[j]
 
-    for top_pt, bottom_pt in extended_hash_lines:
-        interpolated_hash_line_x = _interpolate_x_at_y(top_pt, bottom_pt, max_player_x)
-        if interpolated_hash_line_x >= max_player_x:
-            right_bounding_line = (top_pt, bottom_pt)
+                valid_for_all = True
+                widths = []
+                for px, py in player_centroids:
+                    xi = _interpolate_x_at_y(line_i[0], line_i[1], py)
+                    xj = _interpolate_x_at_y(line_j[0], line_j[1], py)
+                    xl, xr = (xi, xj) if xi <= xj else (xj, xi)
+                    if px < xl or px > xr:
+                        valid_for_all = False
+                        break
+                    widths.append(xr - xl)
+
+                if valid_for_all and widths:
+                    avg_width = float(np.mean(widths))
+                    if avg_width < best_avg_width:
+                        best_avg_width = avg_width
+                        best_pair = (i, j)
+
+    if best_pair is not None:
+        # Order left/right by x at the average player y
+        y_ref = float(np.mean(player_centroids[:, 1]))
+        li = extended_hash_lines[best_pair[0]]
+        lj = extended_hash_lines[best_pair[1]]
+        xi = _interpolate_x_at_y(li[0], li[1], y_ref)
+        xj = _interpolate_x_at_y(lj[0], lj[1], y_ref)
+        if xi <= xj:
+            left_bounding_line, right_bounding_line = li, lj
+        else:
+            left_bounding_line, right_bounding_line = lj, li
+    else:
+        # Fallback: choose nearest lines around the min/max player x at a representative y
+        y_ref = float(np.mean(player_centroids[:, 1]))
+        best_left = None
+        best_left_x = -float('inf')
+        best_right = None
+        best_right_x = float('inf')
+
+        for top_pt, bottom_pt in extended_hash_lines:
+            lx = _interpolate_x_at_y(top_pt, bottom_pt, y_ref)
+            if lx <= min_player_x and lx > best_left_x:
+                best_left_x = lx
+                best_left = (top_pt, bottom_pt)
+            if lx >= max_player_x and lx < best_right_x:
+                best_right_x = lx
+                best_right = (top_pt, bottom_pt)
+
+        left_bounding_line = best_left
+        right_bounding_line = best_right
 
     if left_bounding_line is None:
         left_bounding_line = extended_hash_lines[0]  # Leftmost available line
