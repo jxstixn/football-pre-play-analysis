@@ -29,13 +29,16 @@ https://www.youtube.com/watch?v=qCe0WocvSz8
 
 ## 📊 Example Output
 
-Broadcast Frame with Detection
-
 <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
+    
+  <div style="flex: 1 1 45%; text-align: center;">
+    <h3>Broadcast frame with bounding boxes + LOS</h3>
+    <img src="images/bounding_boxes_detection.jpg" alt="Bounding boxes + LOS line" width="600"/>
+  </div>
 
   <div style="flex: 1 1 45%; text-align: center;">
     <h3>Bounding boxes + LOS line</h3>
-    <img src="images/bounding_boxes_detection.jpg" alt="Bounding boxes + LOS line" width="600"/>
+    <img src="images/debug_field_boundaries.jpg" alt="Bounding boxes" width="600"/>
   </div>
 
   <div style="flex: 1 1 45%; text-align: center;">
