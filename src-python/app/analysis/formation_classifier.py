@@ -1,9 +1,8 @@
 import json
 from dataclasses import dataclass
 from typing import Dict, Tuple, Optional
-from collections import defaultdict
 
-PX_PER_YARD = 10.0
+PX_PER_YARD = 30.0
 
 
 @dataclass
@@ -12,186 +11,6 @@ class Player:
     y: float
     cls: str
     id: Optional[str] = None
-
-
-@dataclass
-class FormationResult:
-    personnel: str
-    lxr: Tuple[int, int]
-    te_side: str
-    off_flag: bool
-    label: str
-    los: int
-    details: Dict
-
-
-def _depth_relative_to_los(x, x_los, offense_side):
-    if offense_side.lower() == "left":
-        return max(0.0, (x_los - x))
-    else:
-        return max(0.0, (x - x_los))
-
-
-def _on_los_band(x, x_los, offense_side, tol_yards=0.5):
-    return abs(x - x_los) <= tol_yards * PX_PER_YARD
-
-
-def _is_backfield(x, x_los, offense_side, min_depth_yards=1.0):
-    return _depth_relative_to_los(x, x_los, offense_side) >= min_depth_yards * PX_PER_YARD
-
-
-def _compute_tackles(oline, x_los, offense_side):
-    los_band = [p[0] if isinstance(p, tuple) else p for p in oline if
-                _on_los_band((p[0] if isinstance(p, tuple) else p).x, x_los, offense_side, tol_yards=1.0)]
-    if len(los_band) < 2:
-        los_band = [p[0] if isinstance(p, tuple) else p for p in oline]
-    if not los_band:
-        raise ValueError("No offensive linemen provided; cannot define tackle box.")
-    leftmost = min(los_band, key=lambda p: p.y)
-    rightmost = max(los_band, key=lambda p: p.y)
-    return leftmost, rightmost
-
-
-def _is_attached_te(p, lt, rt, x_los, offense_side, los_tol_yards=0.5, lateral_tol_yards=1.0):
-    if not _on_los_band(p.x, x_los, offense_side, tol_yards=los_tol_yards):
-        return False, ""
-    if abs(p.y - lt.y) <= lateral_tol_yards * PX_PER_YARD:
-        return True, "left"
-    if abs(p.y - rt.y) <= lateral_tol_yards * PX_PER_YARD:
-        return True, "right"
-    return False, ""
-
-
-def _is_wing_hback(p, lt, rt, x_los, offense_side, min_depth_yards=0.5, max_depth_yards=2.5, lateral_tol_yards=1.5):
-    depth = _depth_relative_to_los(p.x, x_los, offense_side)
-    if depth < min_depth_yards * PX_PER_YARD or depth > max_depth_yards * PX_PER_YARD:
-        return False, ""
-    if abs(p.y - lt.y) <= lateral_tol_yards * PX_PER_YARD:
-        return True, "left"
-    if abs(p.y - rt.y) <= lateral_tol_yards * PX_PER_YARD:
-        return True, "right"
-    return False, ""
-
-
-def _in_tackle_box_lateral(y, lt, rt, pad_yards=0.5):
-    lo = min(lt.y, rt.y) - pad_yards * PX_PER_YARD
-    hi = max(lt.y, rt.y) + pad_yards * PX_PER_YARD
-    return lo <= y <= hi
-
-
-def _classify_roles(players, x_los, offense_side):
-    groups = defaultdict(list)
-    for p in players:
-        groups[p.cls].append(p)
-    return groups
-
-
-def _find_oline_players(players, x_los, offense_side):
-    oline_players = [p for p in players if getattr(p, "cls", None) == "oline"]
-    if len(oline_players) >= 5:
-        return oline_players
-
-    los_tol = 1.0 * PX_PER_YARD
-    los_candidates = [p for p in players if abs(p.x - x_los) < los_tol]
-
-    if len(los_candidates) < 7:
-        los_candidates = sorted(players, key=lambda p: abs(p.x - x_los))[:7]
-
-    sorted_by_y = sorted(los_candidates, key=lambda p: p.y)
-    min_spread = float('inf')
-    best_group = None
-    for i in range(len(sorted_by_y) - 4):
-        group = sorted_by_y[i:i + 5]
-        spread = group[-1].y - group[0].y
-        if spread < min_spread:
-            min_spread = spread
-            best_group = group
-
-    if best_group is not None:
-        for p in oline_players:
-            if p not in best_group:
-                best_group.append(p)
-        return best_group
-
-    return oline_players
-
-
-def _find_wide_receivers(players, x_los, offense_side, side="left"):
-    if side not in ("left", "right"):
-        raise ValueError("side must be 'left' or 'right'")
-    oline_box = get_bounding_box(_find_oline_players(players, x_los, offense_side), padding=5.0 * PX_PER_YARD)
-    _, _, min_y, max_y = oline_box
-    if side == "left":
-        candidates = [p for p in players if p.y < min_y]
-    else:
-        candidates = [p for p in players if p.y > max_y]
-    return candidates
-
-
-def _find_qb(players, x_los, offense_side):
-    qb_candidates = [p for p in players if getattr(p, "cls", None) == "qb"]
-    if qb_candidates:
-        return qb_candidates
-    backfield_candidates = [p for p in players if _is_backfield(p.x, x_los, offense_side, min_depth_yards=1.0)]
-    if not backfield_candidates:
-        return []
-    qb = min(backfield_candidates, key=lambda p: _depth_relative_to_los(p.x, x_los, offense_side))
-    return [qb]
-
-
-def get_bounding_box(players, padding=0.0):
-    if not players:
-        return 0.0, 0.0, 0.0, 0.0
-    min_x = min(p.x for p in players) - padding
-    max_x = max(p.x for p in players) + padding
-    min_y = min(p.y for p in players) - padding
-    max_y = max(p.y for p in players) + padding
-    return min_x, max_x, min_y, max_y
-
-
-def players_in_box(players, box):
-    min_x, max_x, min_y, max_y = box
-    return [p for p in players if min_x <= p.x <= max_x and min_y <= p.y <= max_y]
-
-
-def players_in_box_oline(players, x_los, offense_side):
-    """
-    Gibt eine Liste von Spielern im O-Line-Bereich zurück und klassifiziert TEs als 'TE left', 'TE left off', 'TE right', 'TE right off'
-    abhängig von ihrer Position relativ zur O-Line und offense_side.
-    """
-    oLine_box = get_bounding_box(_find_oline_players(players, x_los, offense_side), padding=7.5 * PX_PER_YARD)
-    strict_oLine_box = get_bounding_box(_find_oline_players(players, x_los, offense_side))
-    print(oLine_box)
-    oline = players_in_box(players, oLine_box)
-    min_x, max_x, min_y, max_y = strict_oLine_box
-    print(strict_oLine_box)
-    print(oline)
-    result = []
-    result.extend(oline)
-    for p in oline:
-        if p.cls in ("skill"):
-            if offense_side == "left":
-                if p.y >= max_y-20 and p.x < min_x:
-                    result.append((p, "TE right off"))
-                elif p.y >= max_y and p.x >= min_x:
-                    result.append((p, "TE right"))
-                elif p.y < min_y and p.x >= min_x:
-                    result.append((p, "TE left"))
-                elif p.x <= min_x and p.y <= min_y:
-                    result.append((p, "TE left off"))
-            elif offense_side == "right":
-                if p.y > max_y and p.x > max_x:
-                    result.append((p, "TE left off"))
-                elif p.y > max_y and p.x < max_x:
-                    result.append((p, "TE left"))
-                elif p.y < min_y and p.x < max_x:
-                    result.append((p, "TE right"))
-                elif p.x > max_x and p.y < min_y:
-                    result.append((p, "TE right off"))
-            if result and isinstance(result[-1], tuple) and result[-1][0] == p:
-                result.remove(p)
-
-    return result
 
 
 def map_transformed_to_filtered_positions(transformed_player_positions):
@@ -215,7 +34,7 @@ def map_transformed_to_filtered_positions(transformed_player_positions):
     return player_positions
 
 
-def get_offense_side(x_los, player_positions):
+def get_offense_side(player_positions):
     # check player classes by labels
     defense = [p for p in player_positions if p['class'] == 'defense']
     offense = [p for p in player_positions if p['class'] in ('skill', 'oline', 'qb')]
@@ -228,142 +47,311 @@ def get_offense_side(x_los, player_positions):
     return "left" if avg_off_x < avg_def_x else "right"
 
 
-def classify_formation(formation_result_path: str, player_positions, x_los, los_yards):
+def find_five_oline_near_los(
+        players,
+        x_los: float,
+        los_band_yards: float = 1.0,
+):
+    """
+    Return exactly five players inside a LOS band that are closest together laterally.
+
+    Rules:
+    - Only consider players with |x - x_los| <= los_band_yards.
+    - No expansion beyond the LOS band; if fewer than five are available, return [].
+    - Among eligible players, select the contiguous window of five (sorted by y)
+      with the smallest lateral spread (y_max - y_min). Ties break on smaller
+      average |x - x_los|.
+    """
+
+    if not players:
+        return []
+
+    los_tol = los_band_yards * PX_PER_YARD
+    los_candidates = [p for p in players if abs(p.x - x_los) <= los_tol]
+
+    if len(los_candidates) < 5:
+        return []
+
+    candidates_sorted_by_y = sorted(los_candidates, key=lambda p: p.y)
+    best_group = None
+    best_key = None  # (spread_y, avg_abs_dx)
+
+    for i in range(len(candidates_sorted_by_y) - 4):
+        group = candidates_sorted_by_y[i:i + 5]
+        spread_y = group[-1].y - group[0].y
+        avg_abs_dx = sum(abs(p.x - x_los) for p in group) / 5.0
+        key = (spread_y, avg_abs_dx)
+        if best_key is None or key < best_key:
+            best_key = key
+            best_group = group
+
+    return best_group if best_group is not None else []
+
+
+def get_oline_backfield_box(oline_players, offense_side: str, pad_y: float = 2.5, pad_backfield: float = 4.0):
+    """
+    Build a bounding box around the provided five O-Line players with padding:
+    - Top/Bottom (lateral, y): 2.5 yards on each side
+    - Backfield (x, relative to offense direction): 4.0 yards only toward backfield
+
+    The backfield is defined as the direction opposite the offense movement:
+    - offense_side == "left"  → offense moves to decreasing x → backfield is +x
+    - offense_side == "right" → offense moves to increasing x → backfield is -x
+
+    Returns a tuple: (min_x, max_x, min_y, max_y)
+    """
+    if not oline_players:
+        return 0.0, 0.0, 0.0, 0.0
+
+    pad_y = pad_y * PX_PER_YARD
+    pad_backfield = pad_backfield * PX_PER_YARD
+
+    min_x = min(p.x for p in oline_players)
+    max_x = max(p.x for p in oline_players)
+    min_y = min(p.y for p in oline_players)
+    max_y = max(p.y for p in oline_players)
+
+    # Apply vertical padding on both sides
+    min_y -= pad_y
+    max_y += pad_y
+
+    # Apply backfield padding on x only toward backfield
+    if offense_side.lower() == "right":
+        # Backfield is +x
+        max_x += pad_backfield
+    else:
+        # Backfield is -x
+        min_x -= pad_backfield
+
+    return min_x, max_x, min_y, max_y
+
+
+def find_tight_ends_in_oline_box(all_players, oline_players, offense_side: str, pad_y: float = 2.5,
+                                 pad_backfield: float = 4.0, line_tol_yards: float = 0.5):
+    """
+    Return players inside the O-Line backfield box that are not already in the O-Line.
+
+    - The O-Line box is computed from `oline_players` using `get_oline_backfield_box` with the
+      provided paddings.
+    - Excludes any player present in `oline_players`.
+    - No class restriction - considers all player classes.
+    """
+    if not all_players or not oline_players:
+        return []
+
+    box = get_oline_backfield_box(oline_players, offense_side, pad_y=pad_y, pad_backfield=pad_backfield)
+    min_x, max_x, min_y, max_y = box
+
+    mid_y = 0.5 * (min_y + max_y)
+
+    oline_ids = set(id(p) for p in oline_players)
+
+    candidates = [
+        p for p in all_players
+        if id(p) not in oline_ids
+           and (min_x <= p.x <= max_x and min_y <= p.y <= max_y)
+    ]
+
+    # Classify ON/OFF LOS by comparing to average O-Line x instead of x_los
+    te_with_status = []
+    avg_oline_x = sum(p.x for p in oline_players) / float(len(oline_players))
+    line_tol_px = line_tol_yards * PX_PER_YARD
+    for p in candidates:
+        status = "ON" if abs(p.x - avg_oline_x) <= line_tol_px else "OFF"
+        te_with_status.append((p, status))
+
+    te_above = [p for p in te_with_status if p[0].y > mid_y]
+    te_below = [p for p in te_with_status if p[0].y <= mid_y]
+
+    return te_above, te_below  # Return below first, then above
+
+
+def find_wide_receivers_by_oline_box(all_players, oline_players, oline_box):
+    """
+    Split wide receivers into two groups based on O-Line box y-bounds.
+
+    - below_wrs: players with y < min_y of the O-Line box
+    - above_wrs: players with y > max_y of the O-Line box
+    - Excludes players already identified as O-Line
+    - Filters to likely WR candidates by class 'skill'
+    Returns (below_wrs, above_wrs)
+    """
+    if not all_players or not oline_players:
+        return [], []
+
+    min_x, max_x, min_y, max_y = oline_box
+    oline_ids = set(id(p) for p in oline_players)
+
+    below_wrs = [
+        p for p in all_players
+        if id(p) not in oline_ids
+           and p.y < min_y
+    ]
+
+    above_wrs = [
+        p for p in all_players
+        if id(p) not in oline_ids
+           and p.y > max_y
+    ]
+
+    return below_wrs, above_wrs
+
+
+def find_qb_and_proximity_players(all_players, exclude_players=None, proximity_yards: float = 5.0):
+    """
+    Find the quarterback (cls == 'qb') and other players within a proximity radius around him.
+
+    - exclude_players: iterable of players to ignore (e.g., oline, tes, wrs)
+    - proximity_yards: circular radius in yards; converted via PX_PER_YARD
+    Returns (qb, nearby_players)
+    """
+    if not all_players:
+        return None, []
+
+    exclude_ids = set(id(p) for p in (exclude_players or []))
+
+    # Locate QB by class; fall back to nearest to LOS among backfield if not explicitly labeled
+    qb_candidates = [p for p in all_players if getattr(p, "cls", None) == "qb" and id(p) not in exclude_ids]
+    qb = qb_candidates[0] if qb_candidates else None
+
+    if qb is None:
+        return None, []
+
+    radius_px = proximity_yards * PX_PER_YARD
+    r2 = radius_px * radius_px
+
+    nearby = []
+    for p in all_players:
+        if id(p) in exclude_ids or id(p) == id(qb):
+            continue
+        dx = p.x - qb.x
+        dy = p.y - qb.y
+        if (dx * dx + dy * dy) <= r2:
+            nearby.append(p)
+
+    return qb, nearby
+
+
+@dataclass
+class FormationResult:
+    personnel: str  # z.B. "21" (2 Fullbacks/RBs, 1 TE)
+    lxr: Tuple[int, int]  # z.B. (2, 3)
+    label: str  # z.B. "21 – 2x3 TE left"
+    los: float
+    details: Dict
+
+    def __str__(self):
+        return f"NewFormationResult(personnel={self.personnel}, lxr={self.lxr}, label={self.label} los={self.los}, details={json.dumps(self.details, indent=2)})"
+
+    def to_json(self):
+        return {
+            "personnel": self.personnel,
+            "lxr": self.lxr,
+            "label": self.label,
+            "los": self.los,
+            "details": self.details
+        }
+
+
+def classify_formation(formation_result_path: str, player_positions, x_los, los_yards) -> FormationResult:
     offensive_player_count = sum(1 for p in player_positions if p['class'] in ('skill', 'oline', 'qb'))
     defensive_player_count = sum(1 for p in player_positions if p['class'] == 'defense')
 
-    offense_side = get_offense_side(x_los, player_positions)
+    offense_side = get_offense_side(player_positions)
 
     filtered_players = map_transformed_to_filtered_positions(player_positions)
     ps = [Player(**p) if not isinstance(p, Player) else p for p in filtered_players]
-    groups = _classify_roles(ps, x_los, offense_side)
 
-    # compute the players inside the o-line box
-    oline = players_in_box_oline(ps, x_los, offense_side)
-    skill = groups.get("skill", [])
-    qb = groups.get("qb", [])
+    oline = find_five_oline_near_los(ps, x_los=x_los, los_band_yards=2.5)
 
-    # compute the wide receiver box on the left and right side of the o-line box
-    leftWR_box = get_bounding_box(_find_wide_receivers(ps, x_los, offense_side, side="left"), padding=5.0 * PX_PER_YARD)
-    rightWR_box = get_bounding_box(_find_wide_receivers(ps, x_los, offense_side, side="right"),
-                                   padding=5.0 * PX_PER_YARD)
+    def _serialize(plrs):
+        return [{"id": p.id, "cls": p.cls, "x": p.x, "y": p.y} for p in plrs]
 
-    oline_ids = {getattr(p, "id", None) if not isinstance(p, tuple) else getattr(p[0], "id", None) for p in oline}
-    leftWR = [p for p in players_in_box(ps, leftWR_box) if getattr(p, "id", None) not in oline_ids]
-    rightWR = [p for p in players_in_box(ps, rightWR_box) if getattr(p, "id", None) not in oline_ids]
+    def _serialize_te(plrs_with_status):
+        return [{"id": p.id, "cls": p.cls, "x": p.x, "y": p.y, "status": status} for p, status in plrs_with_status]
 
-    # compute the running backs
-    if qb:
-        qb_box = get_bounding_box(qb, padding=10.5 * PX_PER_YARD)
+    if oline:
+        oline_box = get_oline_backfield_box(oline, offense_side, pad_y=1.0, pad_backfield=2.0)
+        te_above, te_below = find_tight_ends_in_oline_box(ps, oline, offense_side, pad_y=1.0, pad_backfield=2.0,
+                                                          line_tol_yards=1.0)
+        tes = te_above + te_below
+        wrs_below, wrs_above = find_wide_receivers_by_oline_box(ps, oline, oline_box)
+        excluded = (list(oline) + [p for p, _ in tes] + list(wrs_below) + list(wrs_above))
+        qb, nearby = find_qb_and_proximity_players(ps, exclude_players=excluded, proximity_yards=5.0)
+
+        assigned_ids = set(id(p) for p in excluded)
+        if qb:
+            assigned_ids.add(id(qb))
+        for p in nearby:
+            assigned_ids.add(id(p))
+        remaining = [p for p in ps if id(p) not in assigned_ids]
+
+        wrs_right = wrs_above if offense_side == "left" else wrs_below
+        wrs_left = wrs_below if offense_side == "left" else wrs_above
+
+        te_right = te_above if offense_side == "left" else te_below
+        te_left = te_below if offense_side == "left" else te_above
+
+        details = {
+            "offensive_player_count": offensive_player_count,
+            "defensive_player_count": defensive_player_count,
+            "offense_side": offense_side,
+            "oline_box": oline_box,
+            "oline": _serialize(oline),
+            "te_left": _serialize_te(te_left),
+            "te_right": _serialize_te(te_right),
+            "wr_left": _serialize(wrs_left),
+            "wr_right": _serialize(wrs_right),
+            "qb": {"id": qb.id, "cls": qb.cls, "x": qb.x, "y": qb.y} if qb else None,
+            "qb_nearby": _serialize(nearby),
+            "remaining": _serialize(remaining),
+        }
+
+        num_te = len(te_left) + len(te_right)
+        num_rb = len(nearby)
+        num_wr_left = len(wrs_left)
+        num_wr_right = len(wrs_right)
+        personnel = f"{num_rb}{num_te}"
+        lxr = (num_wr_left, num_wr_right)
+
+        label = f"{personnel} – {lxr[0]}x{lxr[1]}"
+        te_sides = []
+        if te_left:
+            te_sides.append("left")
+        if te_right:
+            te_sides.append("right")
+        if len(te_sides) == 2:
+            label += " TE both"
+        elif len(te_sides) == 1:
+            label += f" TE {te_sides[0]}"
+        off_flag = any("OFF" in status for _, status in tes)
+        if off_flag:
+            label += " [OFF]"
+
+        result = FormationResult(personnel, lxr, label, los_yards, details)
     else:
-        #Fallback: define a QB box relative to the o-line box
-        oline_box = get_bounding_box(_find_oline_players(ps, x_los, offense_side), padding=7.5 * PX_PER_YARD)
-        min_x, max_x, min_y, max_y = oline_box
-        if offense_side == "left":
-            qb_box = (min_x - 15 * PX_PER_YARD, min_x, min_y, max_y)
-        else:
-            qb_box = (max_x, max_x + 15 * PX_PER_YARD, min_y, max_y)
-    qb = [p for p in players_in_box(ps, qb_box) if getattr(p, "cls", None) in ("qb", "skill") and p not in oline]
-
-    lt, rt = _compute_tackles(oline, x_los, offense_side)
-
-    attached_tes = []
-    off_tes = []
-    rbs = []
-    wrs = []
-
-    used_ids = set()
-
-    if len(oline) > 5:
-        for p in oline[5:]:
-            attached_tes.append((p, ""))
-            used_ids.add(id(p))
-
-    for p in skill:
-        if id(p) in used_ids:
-            continue
-        in_qb_box = any(
-            abs(p.x - qb_p.x) <= 10.0 * PX_PER_YARD and abs(p.y - qb_p.y) <= 10.0 * PX_PER_YARD
-            for qb_p in qb
+        result = FormationResult(
+            personnel="00",
+            lxr=(0, 0),
+            label="00 – 0x0",
+            los=los_yards,
+            details={
+                "offensive_player_count": offensive_player_count,
+                "defensive_player_count": defensive_player_count,
+                "offense_side": offense_side,
+                "oline_box": None,
+                "oline": [],
+                "te_left": [],
+                "te_right": [],
+                "wr_left": [],
+                "wr_right": [],
+                "qb": None,
+                "qb_nearby": [],
+                "remaining": _serialize(ps),
+            }
         )
-        if in_qb_box and all(id(p) != id(qb_p) for qb_p in qb):
-            rbs.append(p)
-            used_ids.add(id(p))
-        else:
-            wrs.append(p)
-
-    num_te_attached = max(0, len(oline) - 5)
-    num_rb = max(0, len(qb) - 1)
-    num_wr_left = len(leftWR)
-    num_wr_right = len(rightWR)
-    outside_players = wrs[:]
-    for p, _side in off_tes:
-        if not _in_tackle_box_lateral(p.y, lt, rt):
-            outside_players.append(p)
-    offense_all = oline + qb + skill
-    if not offense_all:
-        center_y = (lt.y + rt.y) / 2.0
-    else:
-        ys = sorted([p.y if hasattr(p, "y") else p[0].y for p in offense_all])
-        mid = len(ys) // 2
-        center_y = ys[mid] if len(ys) % 2 == 1 else 0.5 * (ys[mid - 1] + ys[mid])
-    te_sides = [side for _, side in attached_tes]
-    if len(set(te_sides)) == 2:
-        te_side = "both"
-    elif len(te_sides) == 1:
-        te_side = te_sides[0]
-    else:
-        te_side = ""
-    off_flag = len(off_tes) > 0
-    personnel = f"{num_rb}{num_te_attached}"
-    lxr = (num_wr_left, num_wr_right) if offense_side == "left" else (num_wr_right, num_wr_left)
-    parts = [f"{personnel} – {lxr[0]}x{lxr[1]}"]
-    te_right = any(isinstance(p, tuple) and "TE right" in p[1] for p in oline)
-    te_left = any(isinstance(p, tuple) and "TE left" in p[1] for p in oline)
-    te_off = any(isinstance(p, tuple) and "off" in p[1].lower() for p in oline)
-    if te_right and not te_left:
-        parts.append("TE right")
-    elif te_left and te_right:
-        parts.append("TE both")
-    elif te_left and not te_right:
-        parts.append("TE left")
-    if te_off:
-        parts.append("[OFF]")
-    label = " ".join(parts)
-    details = {
-        "offensive_player_count": offensive_player_count,
-        "defensive_player_count": defensive_player_count,
-        "offense_side": offense_side,
-        "num_rb": num_rb,
-        "num_te_attached": num_te_attached,
-        "left_receivers": num_wr_left,
-        "right_receivers": num_wr_right,
-        "te_side": te_side,
-        "off_flag": off_flag,
-        "attached_te_ids": [getattr(p, "id", None) for p, _ in attached_tes],
-        "off_te_ids": [getattr(p, "id", None) for p, _ in off_tes],
-        "rb_ids": [getattr(p, "id", None) for p in rbs],
-        "wr_ids": [getattr(p, "id", None) for p in wrs],
-        "center_y_used": center_y,
-        "lt_y": lt.y,
-        "rt_y": rt.y,
-        "oline_ids": [getattr(p, "id", None) for p in oline],
-        "leftWR_ids": [getattr(p, "id", None) for p in leftWR],
-        "rightWR_ids": [getattr(p, "id", None) for p in rightWR],
-        "qb_ids": [getattr(p, "id", None) for p in qb],
-    }
-
-    final_json = {
-        "personnel": personnel,
-        "lxr": lxr,
-        "te_side": te_side,
-        "off_flag": off_flag,
-        "label": label,
-        "los": los_yards,
-        "details": details
-    }
 
     with open(formation_result_path, "w") as f:
-        json.dump(final_json, f, indent=4)
+        json.dump(result.to_json(), f, indent=4)
 
-    return FormationResult(personnel, lxr, te_side, off_flag, label, los_yards, details)
+    return result
