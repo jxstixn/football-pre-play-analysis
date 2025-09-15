@@ -1,4 +1,4 @@
-# Automated Pre-Play Analysis of Football Formations
+# Automated Pre-Play Analysis of American Football Formations
 ---
 
 ## 📖 Overview
@@ -6,7 +6,7 @@
 This repository implements a **modular pipeline** for detecting and classifying offensive formations in American
 football from broadcast video. The project builds upon the paper:
 
-> **Automated Pre-Play Analysis of Football**  
+> **Automated Pre-Play Analysis of American Football**  
 > Lasse Wilhelm, Justin Getzke  
 > University of Cologne, 2025
 
@@ -86,8 +86,8 @@ Broadcast Frame with Detection
 ## 📜 Citation
 
 ````
-@inproceedings{prePlayAnalysis2025formation,
-  title={Automated Pre-Play Analysis of Football},
+@inproceedings{prePlayAnalysis2025,
+  title={Automated Pre-Play Analysis of American Football},
   author={Getzke, Justin and Wilhelm, Lasse},
   year={2025},
   institution={University of Cologne}
